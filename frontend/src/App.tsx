@@ -1,15 +1,24 @@
-import React from 'react';
-import logo from './logo.svg';
+import { ReactElement } from 'react';
+import {BrowserRouter as Router, Navigate , Routes, Route} from 'react-router-dom';
 import './App.css';
+import Landing from './pages/Landing';
+// const PrivateRoute = ({element}:{element:ReactElement}) => (
+//   const token = localStorage.getItem('authToken');
+//   return token? element: <Navigate to="login"/>
+// )
+// const AuthenticatedRoute = ({element}:{element:ReactElement})=> (
+//   // get the authToken from the localstorage
+//   const token = localStorage.getItem('authToken');
+//   return token? <Navigate to="/dashboard"/>: element;
+// )  
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-          <h1>Hello World!</h1>
-      </header>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Landing/>} />
+      </Routes>
+    </Router>
   );
 }
-
 export default App;
