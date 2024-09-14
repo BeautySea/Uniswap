@@ -1,8 +1,23 @@
+import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import './App.css';
+import Landing from './pages/Landing';
+// const PrivateRoute = ({element}:{element:ReactElement}) => (
+//   const token = localStorage.getItem('authToken');
+//   return token? element: <Navigate to="login"/>
+// )
+// const AuthenticatedRoute = ({element}:{element:ReactElement})=> (
+//   // get the authToken from the localstorage
+//   const token = localStorage.getItem('authToken');
+//   return token? <Navigate to="/dashboard"/>: element;
+// )  
+
 function App() {
   return (
-    <div className="w-full h-screen bg-blue-800 flex justify-center items-center">
-      <div className="h-20 bg-slate-600 px-10 flex items-center"><h1>Hello, TailwindCSS + Vite + Typescript +  React </h1></div>
-    </div>
-  )
+    <Router>
+      <Routes>
+        <Route path="/" element={<Landing/>} />
+      </Routes>
+    </Router>
+  );
 }
-export default App
+export default App;
