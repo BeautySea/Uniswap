@@ -1,7 +1,0 @@
-@tailwindcss base;
-@tailwindcss components;
-@tailwindcss utilities;
-
-.landingHeight {
-  min-height: calc(100vh - 144px);
-}
