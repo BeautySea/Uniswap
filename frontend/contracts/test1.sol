@@ -124,3 +124,101 @@ contract ArrayReplaceFromEnd {
         assert(arr.length==3);
     }
 }
+contract Enum {
+    //Enum representing shipping status
+    enum Status {
+        Pending,
+        Shipped,
+        Accepted,
+        Rejected,
+        Canceled
+    }
+
+    //Default value is the first element listed in
+    //definition of the type, in this case "Pending"
+    Status public status;
+
+    //Returns uint
+    //Pending -0
+    //Shipped -1
+
+    function get() public view returns (Status) {
+        return status;
+    }
+
+    function set(Status _status) public {
+        status = _status;
+    }
+    function cancel() public {
+        status = Status.Canceled;
+    }
+    function reset() public {
+        delete status;
+    }
+}
+ 
+ import "./EnumDeclaration.sol";
+ contract Enum {
+    Status public status;
+ }
+
+ type Duration is uint64;
+ type Timestamp is uint64;
+ type Clock is uint128;
+
+ library LibClock {
+    function wrap(Duration _duration, Timestamp _timestamp)
+        internal
+        pure
+        returns (Clock clock_) {
+            assembly {
+                //data | Duration  | Timestamp
+                //bit | 0 ... 63 | 64 ... 127
+                clock_:=or(shl(0x04,_duration),_timestamp)
+            }
+        }
+ }
+ contract Todos {
+    struct Todo {
+        string text;
+        bool completed;
+    }
+
+    //An array of 'Todo' structs
+    Todo[] public todos;
+
+    function create(string calldata _text) public {
+        //3 ways to initialize a struct
+        //-calling it like a function
+        todos.push(Todo(_text, false));
+
+        //key vlaue mapping
+        todos.push(Todo({text: _text, completed: false}));
+
+        //initialize an empty struct and then update it
+        Todo memory todo;
+        todo.text = _text;
+        //todo.completed initialized to false
+
+        todos.push(todo);
+    }
+
+    //Solidity sutomatically created a getter for 'todos' so
+    //you don't actually need this function
+    function get(uint256 _index)
+        public
+        view
+        returns (string memory text, bool completed) {
+            Todo storage todo = todos[_index];
+            return (todo.text, todo.completed);
+        }
+    function updateText(uint256 _index, string calldata _text) public {
+        Todo storage todo = todos[_index];
+        todo.text = _text;
+    }
+    //
+    function toggleCompleted(uint256 _index) public {
+        Todo storage todo = todos[_index];
+        todo.completed = !todo.completed;
+    }
+ }
