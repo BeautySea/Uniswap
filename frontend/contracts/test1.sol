@@ -1,295 +1,247 @@
-//SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-//NOTE: Deploy this contract first
-contract B {
-    //NOTE: storage layout must be the same as contract A
-    uint256 public num;
-    address public sender;
-    uint256 public value;
 
-    function setVars(uint256 _num) public payable {
-        num = _num;
-        sender = msg.sender;
-        value = msg.value;
-    }
-}
+contract UniswapV2SwapExamples {
+    address private constant UNISWAP_V2_ROUTER =
+        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
-contract A {
-    uint256 public num;
-    address public sender;
-    uint256 public value;
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    function setVars(address _contract, uint256 _num) public payable {
-        //A's storage is set, B is not modified
-        (bool success, bytes memory data) = _contract.delegatecall(
-            abi.encodeWithSignature("setVars(uint256)", _num);
-        );
-    }
-}
+    IUniswapV2Router private router = IUniswapV2Router(UNISWAP_V2_ROUTER);
+    IERC20 private weth = IERC20(WETH);
+    IERC20 private dai = IERC20(DAI);
 
-contract FunctionSelector {
-    /*
-        "transfer(address, uint256)"
-        0xa9059cbb
-        "transferFrom(address, address,uint256)"
-        0x23b872dd
-     */
-     function getSelector(string calldata _func)
+    // Swap WETH to DAI
+    function swapSingleHopExactAmountIn(uint256 amountIn, uint256 amountOutMin)
         external
-        pure
-        returns (byte4) 
-     {
-        return bytes4(keccak256(bytes(_func)));
-     }
-}
-contract Callee {
-    uint256 public x;
-    uint256 public value;
-
-    function setX(uint256 _x) public returns (uint256) {
-        x=_x;
-        return x;
-    }
-
-    function setXandSendEther(uint256 _x) {
-        public
-        payable
-        returns (uint256, uint256)
-        {
-            x=_x;
-            value=msg.value;
-            return (x,value);
-        }
-    }
-}
-
-contract Caller {
-    function setX(Callee _callee, uint256 _x) public {
-        uint256 x=_callee.setX(_x);
-    }
-    function setXFromAddress(address _addr, uint256 _x) public {
-        Callee callee = Callee(_addr);
-        Callee.setX(_x);
-    }
-    function setXandSendEther(Callee _callee, uint256 _x) public payable {
-        (uint256 x, uint256 value) = 
-            _callee.setXandSendEther{value: msg.value}(_x);
-    }
-}
-contract Car {
-    address public owner;
-    string public model;
-    address public carAddr;
-
-    constructior(address _owner, string memory _model) payable {
-        owner = _owner;
-        model = _model;
-        carAddr = address(this);
-    }
-}
-
-contract CarFactory {
-    Car[] public cars;
-
-    function create(address _owner, string memory _model) public {
-        Car car = new Car(_owner,_model);
-        cars.push(car);
-    }
-    function createAndSendEther(address _owner, string memory _model)
-        public
-        payable
+        returns (uint256 amountOut)
     {
-        Car car = (new Car){value: msg.value}(_owner, _model);
-        cars.push(car);
+        weth.transferFrom(msg.sender, address(this), amountIn);
+        weth.approve(address(router), amountIn);
+
+        address[] memory path;
+        path = new address[](2);
+        path[0] = WETH;
+        path[1] = DAI;
+
+        uint256[] memory amounts = router.swapExactTokensForTokens(
+            amountIn, amountOutMin, path, msg.sender, block.timestamp
+        );
+
+        // amounts[0] = WETH amount, amounts[1] = DAI amount
+        return amounts[1];
     }
-    function create2(address _owner, string memory _model, byte32 _salt) 
-        public
+
+    // Swap DAI -> WETH -> USDC
+    function swapMultiHopExactAmountIn(uint256 amountIn, uint256 amountOutMin)
+        external
+        returns (uint256 amountOut)
     {
-        Car car =( new Car){salt: _salt}(_owner, _model);
-        cars.push(car);
+        dai.transferFrom(msg.sender, address(this), amountIn);
+        dai.approve(address(router), amountIn);
+
+        address[] memory path;
+        path = new address[](3);
+        path[0] = DAI;
+        path[1] = WETH;
+        path[2] = USDC;
+
+        uint256[] memory amounts = router.swapExactTokensForTokens(
+            amountIn, amountOutMin, path, msg.sender, block.timestamp
+        );
+
+        // amounts[0] = DAI amount
+        // amounts[1] = WETH amount
+        // amounts[2] = USDC amount
+        return amounts[2];
     }
-    function create2AndSendEther(
-        address _owner,
-        string memory _model,
-        bytes _salt
-    ) public payable {
-        Car car= (new Car){value:msg.value,salt:_salt}(_owner,_model);
-        cars.push(car);
-    }
-    function getCar(uint256 _index)
-        public
-        view
-        returns (
-            address owner,
-            string memory model,
-            address carAddr,
-            uint256 balance
-        )
-        {
-            Car car = cars[_index];
-            return (car.owner(), car.model(),car.carAddr(),address(car).balance)
+
+    // Swap WETH to DAI
+    function swapSingleHopExactAmountOut(
+        uint256 amountOutDesired,
+        uint256 amountInMax
+    ) external returns (uint256 amountOut) {
+        weth.transferFrom(msg.sender, address(this), amountInMax);
+        weth.approve(address(router), amountInMax);
+
+        address[] memory path;
+        path = new address[](2);
+        path[0] = WETH;
+        path[1] = DAI;
+
+        uint256[] memory amounts = router.swapTokensForExactTokens(
+            amountOutDesired, amountInMax, path, msg.sender, block.timestamp
+        );
+
+        // Refund WETH to msg.sender
+        if (amounts[0] < amountInMax) {
+            weth.transfer(msg.sender, amountInMax - amounts[0]);
         }
-}
 
-contract Foo {
-    address public owner;
-
-    constructor(address _owner) {
-        require(_owner != address(0),"Invalid address");
-        assert(_owner!=0x00000000000000000000000000000000001);
-        owner = _owner;
+        return amounts[1];
     }
 
-    function myFunc(uint256 x) public pure returns (string memory) {
-        require(x!=0, "require failed");
-        return "my func was called";
-    }
-}
+    // Swap DAI -> WETH -> USDC
+    function swapMultiHopExactAmountOut(
+        uint256 amountOutDesired,
+        uint256 amountInMax
+    ) external returns (uint256 amountOut) {
+        dai.transferFrom(msg.sender, address(this), amountInMax);
+        dai.approve(address(router), amountInMax);
 
-contract Bar {
-    event Log(string message);
-    event LogBytes(bytes data);
+        address[] memory path;
+        path = new address[](3);
+        path[0] = DAI;
+        path[1] = WETH;
+        path[2] = USDC;
 
-    Foo public foo;
+        uint256[] memory amounts = router.swapTokensForExactTokens(
+            amountOutDesired, amountInMax, path, msg.sender, block.timestamp
+        );
 
-    constructor() {
-        //This Foo contract is used for example of try catch with external call
-        foo = new Foo(msg.sender);
-    }
-    //Example of try/catch with external call
-    //tryCatchExternalCall(0)=>Log("external call failed")
-    //tryCatchExternalCall(1)=>Log("my func was called")
-    function tryCatchExternalCall(uint256 _i) public {
-        try foo.myFunc(_i) returns (string memory result) {
-            emit Log(result);
-        } catch {
-            emit Log("external call failed");
+        // Refund DAI to msg.sender
+        if (amounts[0] < amountInMax) {
+            dai.transfer(msg.sender, amountInMax - amounts[0]);
         }
-    }
 
-    //Example of try/catch with contract creation
-    //tryCatchNewContract(0x0000000000000000000000000000) => Log("Invaild address")
-    function tryCatchNewContract(address _owner) public {
-        try new Foo(_owner) returns (Foo foo) {
-            //you can use variable foo here
-            emit Log("Foo created");
-        } catch Error(string memory reason) {
-            //catch failing revert() and require()
-            emit Log(reason)
-        } catch (bytes memory reason) {
-            //catch failing assert()
-            emit LogBytes(reason);
-        }
+        return amounts[2];
     }
 }
 
-library Math {
-    function sqrt(uint256 y) internal pure returns (uint256 z) {
-        if(y>3) {
-            z=y;
-            uint256 z=y/2+1;
-            while(x<z) {
-                z=x;
-                x=(y/x+x)/2;
-            }
-        } else if (y!=0) {
-            z=1;
-        }
-        //else z=0(default value)
-    }
-}
+interface IUniswapV2Router {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 
-contract TestMath {
-    function testSquareRoot(uint256 x) public pure returns (uint256) {
-        return Math.sqrt(x);
-    }
-}
-
-library Array {
-    function removw(uint256[] storage arr, uint256 index) public {
-        //Move the last element into the place to delete
-        require(arr.length>0,"can't remove from empty array");
-        arr[index] = arr[arr.length-1];
-        arr.pop();
-    }
-}
-contract TestArray {
-    using Array for uint256[];
-    uint256[] public arr;
-
-    function testArrayRemove() public {
-        for (uint256 i=0;i<3;i++) {
-            arr.push(i)
-        }
-        arr.remove(1);
-        assert(arr.length==2);
-        assert(arr[0]==0);
-        assert(arr[1]==2);
-    }
+    function swapTokensForExactTokens(
+        uint256 amountOut,
+        uint256 amountInMax,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 }
 
 interface IERC20 {
-    function transfer(address, uint256) external;
-}
-contract Token {
-    function transfer(address, uint256) external {}
-}
-contract AbiEncode {
-    function test(address _contract, bytes calldata data) external {
-        (bool ok,) = _contract.call(data);
-        require(ok,"call failed");
-    }
-    function encodeWithSignature(address to, uint256 amount) {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount)
         external
-        pure
-        returns(bytes memory)
-        {
-            //Typo is not checked -"transfer(address, uint)"
-            return abi.encodeWithSignature("transfer(address,uint256)", to,amount);
-        }
-    }
-    function encodeWithSelector(address to, uint256 amount)
+        returns (bool);
+    function allowance(address owner, address spender)
         external
-        pure
-        returns (bytes memory) {
-            //Typo is not checked - (IERC20.transfer.selector , true, amount)
-            return abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
-        }
-    function encodeCall(address to, uint256 amount) 
+        view
+        returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount)
         external
-        pure
-        returns (bytes memory)
-        {
-            //Typo and type errors will not compile
-            return abi.encodeCall(IERC20.transfer, (to,amount));
-        }
+        returns (bool);
 }
-contract AbiDecode {
-    struct MyStruct {
-        string name;
-        uint256[2] nums;
+
+interface IWETH is IERC20 {
+    function deposit() external payable;
+    function withdraw(uint256 amount) external;
+}
+
+import {Test, console2} from "forge-std/Test.sol";
+import {
+    UniswapV2SwapExamples,
+    IERC20,
+    IWETH
+} from "../../../src/defi/uniswap-v2/UniswapV2SwapExamples.sol";
+
+address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+address constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+contract UniswapV2SwapExamplesTest is Test {
+    IWETH private weth = IWETH(WETH);
+    IERC20 private dai = IERC20(DAI);
+    IERC20 private usdc = IERC20(USDC);
+
+    UniswapV2SwapExamples private uni = new UniswapV2SwapExamples();
+
+    function setUp() public {}
+
+    // Swap WETH -> DAI
+    function testSwapSingleHopExactAmountIn() public {
+        uint256 wethAmount = 1e18;
+        weth.deposit{value: wethAmount}();
+        weth.approve(address(uni), wethAmount);
+
+        uint256 daiAmountMin = 1;
+        uint256 daiAmountOut =
+            uni.swapSingleHopExactAmountIn(wethAmount, daiAmountMin);
+
+        console2.log("DAI", daiAmountOut);
+        assertGe(daiAmountOut, daiAmountMin, "amount out < min");
     }
 
-    function encode(
-        uint256 x,
-        address addr,
-        uint256[] calldata arr,
-        MyStruct calldata myStruct
-    ) external pure returns (bytes memory) {
-        return abi.encode(x, addr, arr, myStruct);
+    // Swap DAI -> WETH -> USDC
+    function testSwapMultiHopExactAmountIn() public {
+        // Swap WETH -> DAI
+        uint256 wethAmount = 1e18;
+        weth.deposit{value: wethAmount}();
+        weth.approve(address(uni), wethAmount);
+
+        uint256 daiAmountMin = 1;
+        uni.swapSingleHopExactAmountIn(wethAmount, daiAmountMin);
+
+        // Swap DAI -> WETH -> USDC
+        uint256 daiAmountIn = 1e18;
+        dai.approve(address(uni), daiAmountIn);
+
+        uint256 usdcAmountOutMin = 1;
+        uint256 usdcAmountOut =
+            uni.swapMultiHopExactAmountIn(daiAmountIn, usdcAmountOutMin);
+
+        console2.log("USDC", usdcAmountOut);
+        assertGe(usdcAmountOut, usdcAmountOutMin, "amount out < min");
     }
 
-    function decode(bytes calldata data)
-        external
-        pure
-        returns (
-            uint256 x,
-            address addr,
-            uint256[] memory arr,
-            MyStruct memory myStruct
-        )
-        {
-            //(uint x, address addr, uint[] memory arr, MyStruct myStruct)=...
-            (x, addr, arr, myStruct) = abi.decode(data,(uint256, address,uint256[],MyStruct));
-        }
+    // Swap WETH -> DAI
+    function testSwapSingleHopExactAmountOut() public {
+        uint256 wethAmount = 1e18;
+        weth.deposit{value: wethAmount}();
+        weth.approve(address(uni), wethAmount);
+
+        uint256 daiAmountDesired = 1e18;
+        uint256 daiAmountOut =
+            uni.swapSingleHopExactAmountOut(daiAmountDesired, wethAmount);
+
+        console2.log("DAI", daiAmountOut);
+        assertEq(
+            daiAmountOut, daiAmountDesired, "amount out != amount out desired"
+        );
+    }
+
+    // Swap DAI -> WETH -> USDC
+    function testSwapMultiHopExactAmountOut() public {
+        // Swap WETH -> DAI
+        uint256 wethAmount = 1e18;
+        weth.deposit{value: wethAmount}();
+        weth.approve(address(uni), wethAmount);
+
+        // Buy 100 DAI
+        uint256 daiAmountOut = 100 * 1e18;
+        uni.swapSingleHopExactAmountOut(daiAmountOut, wethAmount);
+
+        // Swap DAI -> WETH -> USDC
+        dai.approve(address(uni), daiAmountOut);
+
+        uint256 amountOutDesired = 1e6;
+        uint256 amountOut =
+            uni.swapMultiHopExactAmountOut(amountOutDesired, daiAmountOut);
+
+        console2.log("USDC", amountOut);
+        assertEq(
+            amountOut, amountOutDesired, "amount out != amount out desired"
+        );
+    }
 }
